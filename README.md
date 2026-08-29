@@ -170,7 +170,3 @@ python3 -m http.server 8000    # then open http://localhost:8000
   is shown alongside it precisely so you can tell when that is happening.
 - **Spike diagnosis is a heuristic**, not causal inference. Treat it as the question, not the
   answer.
-
-## License
-
-MIT
