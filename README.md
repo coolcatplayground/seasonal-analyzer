@@ -4,7 +4,7 @@
 
 A small web app that answers that question for every product in a catalogue at once. Drop in monthly sales files, and it sorts each product into **season-driven**, **campaign-driven** or **mixed**, then lays every product's year out side by side in one calendar.
 
-**[▶ Open the live demo](https://coolcatplayground.github.io/seasonal-analyzer/)** — press **🐱 デモデータを読み込む** to fill the whole app with a fictional cat-supply store in one click. No sign-in, nothing to install.
+**[▶ Open the live demo](https://coolcatplayground.github.io/seasonal-analyzer/)** — press ** デモデータを読み込む** to fill the whole app with a fictional cat-supply store in one click. No sign-in, nothing to install.
 
 ---
 
