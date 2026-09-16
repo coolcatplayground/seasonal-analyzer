@@ -1,172 +1,91 @@
 # Seasonal Analyzer — 商品別 季節性・トレンド分析
 
-A static web app that answers one question for every product in a catalogue:
+### When a product sells well, is it the season, or something we did?
 
-> **When this product sells well, is that the season — or was it something we did?**
+A small web app that answers that question for every product in a catalogue at once. Drop in monthly sales files, and it sorts each product into **season-driven**, **campaign-driven** or **mixed**, then lays every product's year out side by side in one calendar.
 
-Upload a monthly sales export, and it runs a one-way ANOVA of sales ratio against calendar
-month, reports η² and F, classifies each product as season-driven / campaign-driven / mixed,
-and lays every product's monthly seasonal index side by side in one sortable calendar.
-
-No backend, no account, no build step.
-
-**[▶ Live demo](https://coolcatplayground.github.io/seasonal-analyzer/)** · press
-**🐱 デモデータを読み込む** to populate the whole app with a fictional catalogue in one click
+**[▶ Open the live demo](https://coolcatplayground.github.io/seasonal-analyzer/)** — press **🐱 デモデータを読み込む** to fill the whole app with a fictional cat-supply store in one click. No sign-in, nothing to install.
 
 ---
 
-## The problem it solves
+## Field notes: the creature in the wild
 
-A colleague and I were doing this by hand: export a product's monthly numbers, eyeball the
-peaks, argue about whether December was the gift season or the campaign we ran, then copy the
-conclusion into a master spreadsheet. It worked for a handful of products and did not scale to
-hundreds — and "eyeball the peaks" is not a method. Two people looking at the same chart
-reached different conclusions depending on which year they anchored on.
+A colleague and I were doing this by hand. Export a product's monthly numbers, squint at the peaks, argue about whether December was the gift season or the campaign we ran, then copy the verdict into a master spreadsheet. It worked for a handful of products and fell apart at hundreds. Worse, two people looking at the same chart would reach different conclusions depending on which year caught their eye.
 
-The distinction carries real commercial weight. A season-driven product should be **stocked**
-against the calendar. A campaign-driven product should be **scheduled** — its good months are
-the ones you choose. Confusing the two means either buying inventory for a peak that was
-really a promotion, or waiting for a season that was never going to arrive on its own.
+The answer matters more than it sounds:
 
-So the judgement call was replaced with a statistic, and the master spreadsheet was replaced
-with a calendar the app generates.
+- A **season-driven** product should be **stocked** against the calendar. Its peak arrives whether you do anything or not.
+- A **campaign-driven** product should be **scheduled**. Its good months are the ones you choose.
 
-## What it demonstrates
+Mix them up, and you either buy stock for a "peak" that was really a promotion, or wait for a season that was never coming on its own. So the squinting was replaced with a calculation, and the master spreadsheet with a calendar the app builds itself.
 
-Applied statistics in service of a business decision · awareness of where the chosen statistic
-misleads, and designing the UI around that · idempotent merge semantics over local storage ·
-turning a recurring manual analysis into a reproducible tool · dependency-light vanilla
-JavaScript with a clean separation between parsing, analysis, and storage.
+## What it does
 
----
+**A verdict for every product.** The app compares each month with the rest of that year, so growth over time doesn't get mistaken for seasonality, and measures how much of a product's ups and downs are explained by the time of year. A lot means season-driven, very little means campaign-driven, and anything in between is mixed.
 
-## Method
+**It admits when it isn't sure.** With only a few years of history, the "how seasonal" score tends to run high, even for a product with no real season. So the app always shows a second number that says whether the pattern is stronger than plain luck. A tool that confidently invents seasons would be worse than no tool at all.
 
-For each product, given monthly rows across several years:
+**Spikes come with a suspect, not a conviction.** When a month jumps, the app checks what changed: bigger baskets (客単価上昇), existing customers coming back (既存顧客の再購買), or a wave of new customers (新規顧客の増加). It offers that as a hypothesis. Every month has a note field, so once someone learns the real reason (a campaign, a magazine feature, a stockout), it gets written down and stays there.
 
-1. **Ratio** — each month's sales as a proportion of that year's average. This strips the
-   growth trend out, so a 2019 December and a 2025 December become comparable.
-2. **Seasonal index** — the mean ratio for each calendar month across all years.
-3. **η² and F** — a one-way ANOVA of ratio grouped by calendar month. η² is the share of
-   variance explained by month-of-year; F says whether that share exceeds what sampling noise
-   alone would produce.
-4. **Classification** — η² < 10% campaign-driven, 10–25% mixed, ≥ 25% season-driven.
+**The season calendar (季節カレンダー).** Every product's twelve months in one colour-coded grid, with each product's best month starred. Sort by any month, or filter by product name and verdict, much like a spreadsheet.
 
-### The part worth reading
+**Re-uploading is safe.** Files merge by month instead of overwriting. Upload the whole history again or just the newest months, and you end up in the same place. The log tells you how many months were new, how many were updated, or that nothing changed.
 
-**η² is reported alongside F because η² alone would mislead.** With twelve month-groups and
-only a few years of history, η² carries a systematic upward bias — even a perfectly flat
-product lands somewhere near `dfBetween / dfTotal`. The litter product in the demo catalogue
-is exactly this trap: η² = 0.147 reads as mild seasonality, while F = 1.2 says the pattern is
-indistinguishable from noise. Surfacing one number without the other would have produced a
-tool that confidently invents seasons. More years of history shrinks the bias, and the app
-shows both figures so the user can see when it is biting.
+**Stale products get a tag.** Anything whose latest month is two or more months behind is marked `更新推奨` (update recommended).
 
-**Spike diagnosis is framed as a hypothesis, not a verdict.** When a month spikes, the app
-compares it against that product's own baseline on three axes — average order value, customer
-count, and new-customer share — and proposes a cause: 客単価上昇 (bigger baskets),
-既存顧客の再購買 (existing customers returning), or 新規顧客の増加 (an acquisition wave).
-This is correlational and the app says so. Every month therefore carries a free-text note
-field: when you learn the real reason — a campaign name, a magazine feature, a stockout — you
-write it on that month, and the note survives every future re-upload. The heuristic's job is
-to raise the question and let a human close it.
+## Method: how a verdict is reached
 
-**Re-uploading merges rather than overwrites.** Uploads reconcile by year-month, so you can
-drop in the full history again or only the newest months and get the same result either way.
-The log reports `新規 X ヶ月 / 更新 Y ヶ月`, or `変更なし`. Making the operation idempotent
-removes the "which file was newest?" question entirely.
+For each product, with several years of monthly rows:
 
----
+1. **Ratio.** Each month's sales divided by that year's monthly average. This takes growth out of the picture, so a December in 2019 and a December in 2025 can be compared fairly.
+2. **Seasonal index.** The average ratio for each calendar month across all years. Above 1 means that month usually beats the year's average; below 1 means it usually lags.
+3. **How seasonal: η² (eta squared).** How much of the ups and downs is explained by *which month it is*, from 0% to 100%.
+4. **Is it real: F.** Whether that pattern is stronger than chance alone would produce. A one-way ANOVA across the twelve months gives both numbers.
+5. **Verdict.** η² under 10% → campaign-driven (キャンペーン主導型). 10–25% → mixed (混合型). 25% or more → season-driven (季節性主導型).
 
-## Features
+**Why both numbers, always.** With twelve months and only a few years of history, η² runs high even for a product with no season at all. The demo's litter is exactly this trap: η² = 0.147 looks mildly seasonal, while F = 1.2 says the pattern is indistinguishable from noise. More years of history shrink the problem, and showing both lets you see when it's biting.
 
-- **Upload** — drag & drop `.xlsx`. Locates the sheet whose header row matches the expected
-  columns and takes the product name from the sheet name.
-- **Product detail** — η² and F, seasonal index bars, year-over-year table, top spikes with
-  diagnosed factor and editable notes, weakest months, full raw monthly table.
-- **季節カレンダー** — every product's twelve monthly indices in one colour-coded grid, peak
-  month starred per row, sortable by any month or by η², with Excel-style checklist filters on
-  商品名 and 判定.
-- **Staleness tags** — any product whose latest month is 2+ months behind today is flagged
-  `更新推奨`.
-- **Error banner** — uncaught JS errors surface at the top of the page rather than failing
-  silently. This exists because a partial deploy — new `app.js` against a stale `index.html` —
-  produced a blank table with no explanation, twice.
+**How spikes are read.** The ten strongest months are compared with that product's own normal, and the first rule that fits becomes the suggested reason:
 
-## Demo catalogue
+- average order value 15%+ above normal → 客単価上昇 (bigger baskets)
+- customers 15%+ above that year's average, without an unusual share of new ones → 既存顧客の再購買 (existing customers returning)
+- new-customer share 1.5× normal or more → 新規顧客の増加 (a wave of new customers)
+- otherwise, customers 10%+ above average → 顧客数の増加 (more customers); if nothing fits → 要因不明瞭 (unclear)
 
-The real data is confidential, so the bundled demo is a fictional cat-supply store. The eight
-products were chosen to give the classifier something to separate, not to flatter it:
+It's a correlation, so it's labelled as a hypothesis and paired with a note field for the real answer.
 
-| Product | What it is | η² | F | Verdict |
-|---|---|---:|---:|---|
-| 猫のおせち にゃん重 | New Year feast, for cats | 0.997 | 2171.9 | 季節性主導型 |
-| ハロウィン仮装 かぼちゃニャン | Halloween costume | 0.977 | 279.0 | 季節性主導型 |
-| ひんやりニャンモック | Cooling hammock | 0.947 | 128.5 | 季節性主導型 |
-| こたつニャンハウス | Heated dome | 0.915 | 77.3 | 季節性主導型 |
-| 毛玉ケアフード 毎日ブラッシュ | Hairball care food | 0.245 | 2.3 | 混合型 |
-| 高級ちゅーるタワー ギフト箱 | Premium gift tower | 0.184 | 1.6 | 混合型 |
-| ミラクル猫砂 10L | Litter | 0.147 | 1.2 | 混合型 |
-| またたびスティック30本 | Matatabi sticks | 0.061 | 0.5 | キャンペーン主導型 |
+The method comes from the seasonality analysis my colleague and I were already running in a spreadsheet; the app that automates it was built with generative AI under my direction.
 
-Roughly seven years of monthly data each. Several cases are deliberate: **おせち** and
-**ハロウィン** are the extreme end, products that exist for one month a year.
-**またたびスティック** has a flat baseline with promotions scattered across nine different
-months — real variance, not aligned to the calendar, which is precisely what a low η² means.
-**ミラクル猫砂** is the honest edge case above. **ハロウィン仮装** stops at 2025-11 on purpose,
-so the `更新推奨` staleness tag has something to flag.
+## Specimens in the demo greenhouse
 
-The full eight-product catalogue loads from `js/demo-data.js` via the one-click button, writing
-to IndexedDB through the same merge path a real upload uses. Two of those products
-(`ひんやりニャンモック.xlsx`, `またたびスティック30本.xlsx`) also ship as real `.xlsx` files at
-the repo root — drag them onto the dropzone to exercise the actual parser end to end.
+The real data is confidential, so no company data appears anywhere in this repository. The demo is a fictional cat-supply store with eight products, about seven years each. They were picked to give the app a fair test, not an easy one:
 
-## Input format
+| Product | What it is | Verdict |
+|---|---|---|
+| 猫のおせち にゃん重 | New Year feast, for cats | Season-driven |
+| ハロウィン仮装 かぼちゃニャン | Halloween costume | Season-driven |
+| ひんやりニャンモック | Cooling hammock | Season-driven |
+| こたつニャンハウス | Heated dome | Season-driven |
+| 毛玉ケアフード 毎日ブラッシュ | Hairball care food | Mixed |
+| 高級ちゅーるタワー ギフト箱 | Premium gift tower | Mixed |
+| ミラクル猫砂 10L | Litter | Mixed |
+| またたびスティック30本 | Matatabi sticks | Campaign-driven |
 
-One sheet per product. Column order is free; header strings must match exactly. The sheet name
-becomes the product name.
+A few of them are there on purpose:
+
+- **おせち and ハロウィン** are the extreme cases: products that barely exist outside one month a year.
+- **またたびスティック** sells steadily, with promotions scattered across nine different months. Plenty of ups and downs, none of them tied to the calendar, which is exactly what campaign-driven looks like.
+- **ミラクル猫砂** is the honest trap. Its seasonality score looks mildly seasonal, but the second number says the pattern is no stronger than luck. It's the reason the app never shows one number without the other.
+- **ハロウィン仮装** stops in November 2025, so the `更新推奨` tag has something to catch.
+
+Two of the products also come as real Excel files in the repo (`ひんやりニャンモック.xlsx`, `またたびスティック30本.xlsx`). Drag them onto the upload area to try the real upload path.
+
+## What it eats
+
+One sheet per product, and the **sheet name becomes the product name**. The columns can be in any order, but the headers must match exactly:
 
 | 月別推移 | 売上金額 | 購入個数 | 購入件数 | 総顧客数 | 新規顧客数 | 既存顧客数 |
 |---|---|---|---|---|---|---|
 | 25_04 | 1294060 | 223 | 179 | 121 | 36 | 85 |
 
-This is not an arbitrary schema — it is the output of the `KPI1_MONTHLY` query in my **EC Sales
-KPI & Basket Analysis** tool. The two chain together: that tool pulls monthly figures out of
-SQL Server, this one decides what the shape of those figures means.
-
-## Stack
-
-Vanilla JavaScript, no framework or bundler. SheetJS from CDN for `.xlsx` parsing; everything
-else hand-written. Storage is IndexedDB.
-
-```
-index.html
-css/style.css
-js/
-  db.js          IndexedDB wrapper + merge-by-year-month upsert
-  parse.js       xlsx → structured rows (SheetJS)
-  stats.js       seasonal index / η² / F / spike diagnosis
-  demo-data.js   the cat catalogue, as data
-  app.js         view routing + rendering
-```
-
-`parse.js` and `stats.js` know nothing about where data is stored, so swapping `db.js` for a
-hosted database to gain multi-device sync would leave parsing and analysis untouched.
-
-## Run it locally
-
-```bash
-python3 -m http.server 8000    # then open http://localhost:8000
-```
-
-`file://` mostly works, but IndexedDB and the CDN script are more reliable over `http://`.
-
-## Limitations
-
-- **Storage is per-browser.** Static hosting means data lives in that browser's IndexedDB. It
-  does not sync across devices, and clearing site data wipes it. Acceptable for the
-  single-analyst workflow this is scoped to.
-- **η² needs history.** Under roughly three years the statistic is noisy enough to mislead; F
-  is shown alongside it precisely so you can tell when that is happening.
-- **Spike diagnosis is a heuristic**, not causal inference. Treat it as the question, not the
-  answer.
+This format isn't arbitrary. It's exactly what my [basket analysis tool](https://github.com/coolcatplayground/basket-sales-analysis) exports. The two tools form a small food chain: one pulls monthly figures out of the company database, the other works out what their shape means.
