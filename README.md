@@ -2,9 +2,9 @@
 
 ### When a product sells well, is it the season, or something we did?
 
-A small web app that answers that question for every product in a catalogue at once. Drop in monthly sales files, and it sorts each product into **season-driven**, **campaign-driven** or **mixed**, then lays every product's year out side by side in one calendar.
+A web app that answers that question for every product in a catalogue at once. Load the monthly sales, and it gives each product a verdict (seasonal, seasonal with spikes, spike-driven, stable, or not enough data yet), lays every product's year out side by side in one calendar, and explains each spike by **who** bought: new customers, members reached by a mailing, or the usual buyers buying more.
 
-**[▶ Open the live demo](https://coolcatplayground.github.io/seasonal-analyzer/)** — press ** デモデータを読み込む** to fill the whole app with a fictional cat-supply store in one click. No sign-in, nothing to install.
+**[▶ Open the live demo](https://coolcatplayground.github.io/seasonal-analyzer/?demo)** — it opens with a fictional cat-supply store already loaded. No sign-in, nothing to install. Japanese and English.
 
 ---
 
@@ -14,78 +14,103 @@ A colleague and I were doing this by hand. Export a product's monthly numbers, s
 
 The answer matters more than it sounds:
 
-- A **season-driven** product should be **stocked** against the calendar. Its peak arrives whether you do anything or not.
-- A **campaign-driven** product should be **scheduled**. Its good months are the ones you choose.
+- A **seasonal** product should be **stocked** against the calendar. Its peak arrives whether you do anything or not.
+- A **spike-driven** product should be **scheduled**. Its good months are the ones you choose.
 
-Mix them up, and you either buy stock for a "peak" that was really a promotion, or wait for a season that was never coming on its own. So the squinting was replaced with a calculation, and the master spreadsheet with a calendar the app builds itself.
+Mix them up, and you either buy stock for a "peak" that was really a promotion, or wait for a season that was never coming on its own.
 
 ## What it does
 
-**A verdict for every product.** The app compares each month with the rest of that year, so growth over time doesn't get mistaken for seasonality, and measures how much of a product's ups and downs are explained by the time of year. A lot means season-driven, very little means campaign-driven, and anything in between is mixed.
+**A verdict for every product.** Each product gets one of five verdicts: 季節性あり (seasonal), 季節性＋スパイク (seasonal + spikes), スパイク主導 (spike-driven), 季節性なし（安定） (stable) or データ不足 (not enough data). Next to it: how strong the season is, and how likely the pattern is to be luck.
 
-**It admits when it isn't sure.** With only a few years of history, the "how seasonal" score tends to run high, even for a product with no real season. So the app always shows a second number that says whether the pattern is stronger than plain luck. A tool that confidently invents seasons would be worse than no tool at all.
+**It admits when it isn't sure.** A product with less than two years of history gets no verdict at all. Until then, it borrows the shape of the shop's overall season, and the page shows how much of its estimate is its own data and how much is borrowed.
 
-**Spikes come with a suspect, not a conviction.** When a month jumps, the app checks what changed: bigger baskets (客単価上昇), existing customers coming back (既存顧客の再購買), or a wave of new customers (新規顧客の増加). It offers that as a hypothesis. Every month has a note field, so once someone learns the real reason (a campaign, a magazine feature, a stockout), it gets written down and stays there.
+**Spikes come with a suspect, and the buyers to back it up.** For each unusual month the app compares the buyers with the twelve months before and names the pattern:
 
-**The season calendar (季節カレンダー).** Every product's twelve months in one colour-coded grid, with each product's best month starred. Sort by any month, or filter by product name and verdict, much like a spreadsheet.
+- **members reached**: existing members who had never bought the product (a magazine, DM or email)
+- **acquisition**: customers new to the shop (ads, marketplaces)
+- **usual buyers buying more**: a campaign to current buyers, or stocking up
+- **bigger baskets**: about the same people, each spending more
 
-**Re-uploading is safe.** Files merge by month instead of overwriting. Upload the whole history again or just the newest months, and you end up in the same place. The log tells you how many months were new, how many were updated, or that nothing changed.
+Every month has a note field, so once someone learns the real reason, it gets written down and stays there. The **メモ** view collects every note across every product, and its by-month view lights up months where several products have notes: usually a shop-wide campaign.
 
-**Stale products get a tag.** Anything whose latest month is two or more months behind is marked `更新推奨` (update recommended).
+**Buyers over time.** Each product's buyers per month are split into new to shop, first time for this product, regular and returning, with the share of newcomers who came back within six months. The app warns when the buyer base is shrinking or when newcomers have stopped coming back.
+
+**The season calendar (季節カレンダー).** Every product's twelve months in one colour-coded grid, each product's best month starred. Sort by any month, filter like a spreadsheet, or switch to "against the shop" to see which products peak harder than the shop already does.
+
+**Momentum (勢い).** The last 3, 6 or 12 months against what the product's usual path predicted. Over 100% means it's selling better than its season explains.
+
+**Order channels (受注方法).** Sales by channel (web store, marketplaces, phone, fax and post, in store, classes), each channel's own season, and which products grew or shrank inside a channel. A filter in the top bar runs every page on one channel's sales.
+
+**Inside a product.** SKU breakdown, with each spike listing the SKUs that made it. Tick SKUs and the whole page recalculates on just those.
+
+**Also:** a 期間 switch (all years, last 5, last 3), so a pattern that changed shows as it is now; a 数値 / ビジュアル switch that swaps tables for charts on the same figures; a print view for a one-product handout; and re-uploads that merge by month instead of overwriting.
 
 ## Method: how a verdict is reached
 
-For each product, with several years of monthly rows:
+The first version divided each month by its year's average and measured how much of the variation the month explained. On short histories that method found a "season" in almost anything, so it was replaced:
 
-1. **Ratio.** Each month's sales divided by that year's monthly average. This takes growth out of the picture, so a December in 2019 and a December in 2025 can be compared fairly.
-2. **Seasonal index.** The average ratio for each calendar month across all years. Above 1 means that month usually beats the year's average; below 1 means it usually lags.
-3. **How seasonal: η² (eta squared).** How much of the ups and downs is explained by *which month it is*, from 0% to 100%.
-4. **Is it real: F.** Whether that pattern is stronger than chance alone would produce. A one-way ANOVA across the twelve months gives both numbers.
-5. **Verdict.** η² under 10% → campaign-driven (キャンペーン主導型). 10–25% → mixed (混合型). 25% or more → season-driven (季節性主導型).
+1. **Model.** For each product, `log(sales) = year effect + month effect + noise`. The year effects absorb growth and partial years; the log makes "+50%" mean the same for a small product and a large one.
+2. **Is it real?** An F test for the month effect, with the p-value from a **permutation test**: shuffle the month labels inside each year 199 times and see how often chance does as well. Seasonal if p < 0.05.
+3. **How strong?** ω² (omega squared), a version of η² corrected for the bias that makes short series look seasonal.
+4. **Enough data?** No verdict below 24 months with sales, or if any month has been seen fewer than twice.
+5. **Short histories borrow strength.** Each month's estimate is pulled toward the shop-wide pattern, more strongly the less data the product has (empirical Bayes shrinkage). The page shows the weight and a 90% band.
+6. **Spikes.** Months far above what the model expected for that year and month, by a robust z-score. Half a spike or more per year counts as "spiky".
 
-**Why both numbers, always.** With twelve months and only a few years of history, η² runs high even for a product with no season at all. The demo's litter is exactly this trap: η² = 0.147 looks mildly seasonal, while F = 1.2 says the pattern is indistinguishable from noise. More years of history shrink the problem, and showing both lets you see when it's biting.
-
-**How spikes are read.** The ten strongest months are compared with that product's own normal, and the first rule that fits becomes the suggested reason:
-
-- average order value 15%+ above normal → 客単価上昇 (bigger baskets)
-- customers 15%+ above that year's average, without an unusual share of new ones → 既存顧客の再購買 (existing customers returning)
-- new-customer share 1.5× normal or more → 新規顧客の増加 (a wave of new customers)
-- otherwise, customers 10%+ above average → 顧客数の増加 (more customers); if nothing fits → 要因不明瞭 (unclear)
-
-It's a correlation, so it's labelled as a hypothesis and paired with a note field for the real answer.
+The spike diagnosis is a correlation, so it's labelled as a hypothesis and paired with a note field for the real answer.
 
 The method comes from the seasonality analysis my colleague and I were already running in a spreadsheet; the app that automates it was built with generative AI under my direction.
 
 ## Specimens in the demo greenhouse
 
-The real data is confidential, so no company data appears anywhere in this repository. The demo is a fictional cat-supply store with eight products, about seven years each. They were picked to give the app a fair test, not an easy one:
+The real data is confidential, so the demo is a fictional cat-supply store: ten series, January 2019 to October 2026, generated in the browser. They were picked to give every verdict and every feature something to show:
 
-| Product | What it is | Verdict |
+| Series | What it is | Verdict |
 |---|---|---|
-| 猫のおせち にゃん重 | New Year feast, for cats | Season-driven |
-| ハロウィン仮装 かぼちゃニャン | Halloween costume | Season-driven |
-| ひんやりニャンモック | Cooling hammock | Season-driven |
-| こたつニャンハウス | Heated dome | Season-driven |
-| 毛玉ケアフード 毎日ブラッシュ | Hairball care food | Mixed |
-| 高級ちゅーるタワー ギフト箱 | Premium gift tower | Mixed |
-| ミラクル猫砂 10L | Litter | Mixed |
-| またたびスティック30本 | Matatabi sticks | Campaign-driven |
+| 猫のおせち にゃん重 | New Year feast, for cats | Seasonal |
+| ハロウィン仮装 かぼちゃニャン | Halloween costume (discontinued) | Seasonal |
+| ひんやりニャンモック | Cooling hammock | Seasonal |
+| こたつニャンハウス | Heated dome | Seasonal |
+| 高級ちゅーるタワー ギフト箱 | Premium gift tower | Seasonal |
+| 毛玉ケアフード 毎日ブラッシュ | Hairball care food | Seasonal + spikes |
+| またたびスティック30本 | Matatabi sticks | Spike-driven |
+| ミラクル猫砂 10L | Litter | Stable |
+| にゃんファウンテン 自動給水器 | Water fountain, launched Feb 2025 | Not enough data |
+| しつけ教室チケット | Training class tickets (a service, so a second 会計区分) | Seasonal |
 
 A few of them are there on purpose:
 
-- **おせち and ハロウィン** are the extreme cases: products that barely exist outside one month a year.
-- **またたびスティック** sells steadily, with promotions scattered across nine different months. Plenty of ups and downs, none of them tied to the calendar, which is exactly what campaign-driven looks like.
-- **ミラクル猫砂** is the honest trap. Its seasonality score looks mildly seasonal, but the second number says the pattern is no stronger than luck. It's the reason the app never shows one number without the other.
-- **ハロウィン仮装** stops in November 2025, so the `更新推奨` tag has something to catch.
+- **またたびスティック** sells steadily, with fourteen DM and magazine promotions scattered across eleven different months. The buyer breakdown names every one of its top ten spikes "members reached", and four of them carry notes saying which mailing it was.
+- **ミラクル猫砂** is the honest trap. It wobbles enough month to month to look like a pattern on a chart; the permutation test says it's luck (p = 0.74).
+- **ちゅーるタワー** has a bump every February: 猫の日 (2/22) gift boxes. In the spike list those Februaries come out as "bigger baskets", not more people, and its marketplace share has grown fastest of any series (22% → 45%).
+- **にゃんファウンテン** is too young for a verdict, so it borrows the shop's season, and the 12-month view of 勢い tags it 新 (new).
+- **こたつニャンハウス** is shrinking and this autumn is running well under its usual path, so it sits at the bottom of 勢い.
+- **ハロウィン仮装** was discontinued in 2025, so it only appears when "show ended series" is ticked.
 
-Two of the products also come as real Excel files in the repo (`ひんやりニャンモック.xlsx`, `またたびスティック30本.xlsx`). Drag them onto the upload area to try the real upload path.
+Two products also come as real Excel files in [`samples/`](samples). Drag them onto the upload area to try the .xlsx path.
 
 ## What it eats
 
-One sheet per product, and the **sheet name becomes the product name**. The columns can be in any order, but the headers must match exactly:
+**One product per .xlsx file.** The **sheet name becomes the product name**. The columns can be in any order, but the headers must match exactly:
 
 | 月別推移 | 売上金額 | 購入個数 | 購入件数 | 総顧客数 | 新規顧客数 | 既存顧客数 |
 |---|---|---|---|---|---|---|
 | 25_04 | 1294060 | 223 | 179 | 121 | 36 | 85 |
 
-This format isn't arbitrary. It's exactly what my [basket analysis tool](https://github.com/coolcatplayground/basket-sales-analysis) exports. The two tools form a small food chain: one pulls monthly figures out of the company database, the other works out what their shape means.
+This is exactly what my [basket analysis tool](https://github.com/coolcatplayground/basket-sales-analysis) exports. The two tools form a small food chain: one pulls monthly figures out of the company database, the other works out what their shape means.
+
+**Or every product at once, as `products.json`.** The monthly roll-up writes one file with every series, its SKUs, buyer types and order channels. The demo is built in the same shape and goes through the same import path (see `js/db.js` for the fields).
+
+## Running it
+
+Open the live demo, or serve the folder locally:
+
+```bash
+python3 -m http.server 8000
+```
+
+There's no build step and no server-side code. Uploaded data is stored in the browser's IndexedDB and never leaves the device; nothing syncs between browsers. SheetJS (for reading .xlsx) and the fonts load from public CDNs.
+
+## Fine print
+
+**No company data appears in this repository.** The demo store, its products, SKUs, customers, channels and notes are all invented. `.gitignore` blocks `.xlsx`, `.csv` and `products.json` everywhere except `samples/`, so a real export can't be committed by accident.

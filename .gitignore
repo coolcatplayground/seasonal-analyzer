@@ -1,0 +1,9 @@
+# This repo is public (GitHub Pages). Real sales exports must never be committed.
+*.xlsx
+*.xls
+*.csv
+products.json
+*products*.json
+
+# the two fictional sample uploads are the only exception
+!samples/*.xlsx
