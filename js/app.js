@@ -49,6 +49,7 @@ function showFatalError(detail) {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('is-active'));
     document.getElementById('view-' + id).classList.add('is-active');
     document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('is-active', b.dataset.view === id));
+    refreshDemoNotice();
   }
 
   document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -113,11 +114,12 @@ function showFatalError(detail) {
   // demo exercises the real import path. Safe to press twice: the merge is by 月度, and a note
   // someone has already edited is left alone. ?demo in the URL loads it on a first visit.
   const demoBtn = document.getElementById('load-demo');
+  const DEMO_FILE = 'demo-products.json';
   async function loadDemo() {
     demoBtn.disabled = true;
     try {
       const doc = SalesDemo.bundle();
-      await handleBundle(new File([JSON.stringify(doc)], 'demo-products.json', { type: 'application/json' }));
+      await handleBundle(new File([JSON.stringify(doc)], DEMO_FILE, { type: 'application/json' }));
       for (const [name, ymKey, note] of SalesDemo.NOTES) {
         const rec = await SalesDB.get(name);
         if (rec && !(rec.notes || {})[ymKey]) await SalesDB.setNote(name, ymKey, note);
@@ -131,6 +133,28 @@ function showFatalError(detail) {
     }
   }
   demoBtn.addEventListener('click', loadDemo);
+
+  // While any demo series is loaded, a slim notice says what to click first and offers a reset:
+  // the demo series are deleted (with any notes edited on them) and loaded again, so a visitor
+  // who deleted a product or scribbled on a note can get the clean store back. Real uploads stay.
+  const demoNotice = document.getElementById('demo-notice');
+  const resetBtn = document.getElementById('reset-demo');
+  async function refreshDemoNotice() {
+    const all = await SalesDB.getAll();
+    demoNotice.hidden = !all.some((p) => p.sourceFileName === DEMO_FILE);
+  }
+  resetBtn.addEventListener('click', async () => {
+    if (!confirm(t('demo.resetConfirm'))) return;
+    resetBtn.disabled = true;
+    try {
+      for (const s of SalesDemo.bundle().series) await SalesDB.remove(s.name);
+      currentProduct = null;
+      await loadDemo();
+    } finally {
+      resetBtn.disabled = false;
+    }
+  });
+  refreshDemoNotice();
   if (new URLSearchParams(location.search).has('demo')) {
     SalesDB.getAll().then((all) => { if (!all.length) loadDemo(); });
   }
@@ -850,7 +874,7 @@ function showFatalError(detail) {
       col.innerHTML = `
         <span class="season-val">${fmtPct(v, 0)}</span>
         <div class="season-bar-track"><div class="season-bar ${cls}" style="height:${heightPct}%"></div>${band}</div>
-        <span class="season-label">${monthLabel(s.month)}</span>
+        <span class="season-label" data-short="${s.month}">${monthLabel(s.month)}</span>
       `;
       wrap.appendChild(col);
     });
@@ -1904,7 +1928,7 @@ function showFatalError(detail) {
     const max = Math.max(1, ...d.b.slice(0, 4), ...d.base);
     el.innerHTML = BUYER_KEYS.map((k, i) => `
       <div class="drv-row" title="${escapeHtml(t('buyers.vsUsual', t('buyers.' + k), d.b[i], Math.round(d.base[i])))}">
-        <span class="drv-k">${escapeHtml(t('buyers.' + k))}</span>
+        <span class="drv-k">${escapeHtml(t(k === 'productNew' ? 'buyers.productNewShort' : 'buyers.' + k))}</span>
         <span class="drv-track"><i class="drv-now" style="width:${(d.b[i] / max * 100).toFixed(1)}%;background:var(--b-${k})"></i><i class="drv-usual" style="left:${(d.base[i] / max * 100).toFixed(1)}%"></i></span>
         <span class="drv-v">${fmtInt(d.b[i])}<small> / ${fmtInt(d.base[i])}</small></span>
       </div>`).join('')

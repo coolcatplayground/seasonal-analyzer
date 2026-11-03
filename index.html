@@ -4,9 +4,17 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>商品売上分析 | Seasonal Analyzer</title>
+<meta name="description" content="Per-product seasonality verdicts, spike diagnosis by buyer type, SKU and order-channel views. Live demo with a fictional cat-supply store." />
+<!-- link previews (chat apps, LinkedIn, X) -->
+<meta property="og:title" content="Seasonal Analyzer: is it the season, or something we did?" />
+<meta property="og:description" content="A verdict for every product at once (seasonal, spike-driven or stable) and who was buying in each spike. Demo with a fictional cat-supply store." />
+<meta property="og:image" content="https://coolcatplayground.github.io/seasonal-analyzer/docs/social-preview.png" />
+<meta property="og:url" content="https://coolcatplayground.github.io/seasonal-analyzer/" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=20261102p" />
+<link rel="stylesheet" href="css/style.css?v=20261103a" />
 </head>
 <body>
 
@@ -51,6 +59,12 @@
   </header>
 
   <main class="views">
+
+    <!-- shown while the fictional store is loaded: what to click first, and a way back to a clean demo -->
+    <div id="demo-notice" class="demo-notice" hidden>
+      <p><strong data-i18n="demo.noticeTitle">デモ店舗を表示中</strong><span data-i18n="demo.noticeText">架空の猫グッズ店です。</span></p>
+      <button type="button" id="reset-demo" class="demo-reset" data-i18n="demo.reset">デモをリセット</button>
+    </div>
 
     <!-- ===================== UPLOAD VIEW ===================== -->
     <section id="view-upload" class="view is-active">
@@ -549,11 +563,11 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="js/i18n.js?v=20261102p"></script>
-<script src="js/db.js?v=20261102p"></script>
-<script src="js/parse.js?v=20261102p"></script>
-<script src="js/stats.js?v=20261102p"></script>
-<script src="js/demo-data.js?v=20261102p"></script>
-<script src="js/app.js?v=20261102p"></script>
+<script src="js/i18n.js?v=20261103a"></script>
+<script src="js/db.js?v=20261103a"></script>
+<script src="js/parse.js?v=20261103a"></script>
+<script src="js/stats.js?v=20261103a"></script>
+<script src="js/demo-data.js?v=20261103a"></script>
+<script src="js/app.js?v=20261103a"></script>
 </body>
 </html>

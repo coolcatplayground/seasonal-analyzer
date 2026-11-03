@@ -1,10 +1,14 @@
 # Seasonal Analyzer — 商品別 季節性・トレンド分析
 
+[![verify](https://github.com/coolcatplayground/seasonal-analyzer/actions/workflows/verify.yml/badge.svg)](https://github.com/coolcatplayground/seasonal-analyzer/actions/workflows/verify.yml)
+
 ### When a product sells well, is it the season, or something we did?
 
 A web app that answers that question for every product in a catalogue at once. Load the monthly sales, and it gives each product a verdict (seasonal, seasonal with spikes, spike-driven, stable, or not enough data yet), lays every product's year out side by side in one calendar, and explains each spike by **who** bought: new customers, members reached by a mailing, or the usual buyers buying more.
 
-**[▶ Open the live demo](https://coolcatplayground.github.io/seasonal-analyzer/?demo)** — it opens with a fictional cat-supply store already loaded. No sign-in, nothing to install. Japanese and English.
+**[▶ Open the live demo](https://coolcatplayground.github.io/seasonal-analyzer/?demo)** — it opens with a fictional cat-supply store already loaded. No sign-in, nothing to install. Japanese and English, desktop and phone.
+
+![From the product map to one product's verdict, its spikes, who was buying, and the season calendar](docs/demo.gif)
 
 ---
 
@@ -25,6 +29,8 @@ Mix them up, and you either buy stock for a "peak" that was really a promotion, 
 
 **It admits when it isn't sure.** A product with less than two years of history gets no verdict at all. Until then, it borrows the shape of the shop's overall season, and the page shows how much of its estimate is its own data and how much is borrowed.
 
+![またたびスティック: spike-driven. No month stands out (p = 0.985), but fourteen months were far above expectation](docs/screenshot-product.png)
+
 **Spikes come with a suspect, and the buyers to back it up.** For each unusual month the app compares the buyers with the twelve months before and names the pattern:
 
 - **members reached**: existing members who had never bought the product (a magazine, DM or email)
@@ -32,11 +38,15 @@ Mix them up, and you either buy stock for a "peak" that was really a promotion, 
 - **usual buyers buying more**: a campaign to current buyers, or stocking up
 - **bigger baskets**: about the same people, each spending more
 
+![Each spike's buyers against a usual month: here, members who had never bought the product, the signature of a mailing](docs/screenshot-spikes.png)
+
 Every month has a note field, so once someone learns the real reason, it gets written down and stays there. The **メモ** view collects every note across every product, and its by-month view lights up months where several products have notes: usually a shop-wide campaign.
 
 **Buyers over time.** Each product's buyers per month are split into new to shop, first time for this product, regular and returning, with the share of newcomers who came back within six months. The app warns when the buyer base is shrinking or when newcomers have stopped coming back.
 
 **The season calendar (季節カレンダー).** Every product's twelve months in one colour-coded grid, each product's best month starred. Sort by any month, filter like a spreadsheet, or switch to "against the shop" to see which products peak harder than the shop already does.
+
+![The season calendar: the strongest and weakest products for a month, and every seasonal product grouped by its peak](docs/screenshot-calendar.png)
 
 **Momentum (勢い).** The last 3, 6 or 12 months against what the product's usual path predicted. Over 100% means it's selling better than its season explains.
 
@@ -109,7 +119,25 @@ Open the live demo, or serve the folder locally:
 python3 -m http.server 8000
 ```
 
-There's no build step and no server-side code. Uploaded data is stored in the browser's IndexedDB and never leaves the device; nothing syncs between browsers. SheetJS (for reading .xlsx) and the fonts load from public CDNs.
+There's no build step and no server-side code. Uploaded data is stored in the browser's IndexedDB and never leaves the device; nothing syncs between browsers. SheetJS (for reading .xlsx) and the fonts load from public CDNs. While the demo is loaded, **デモをリセット** (Reset demo) puts back any demo product or note a visitor changed.
+
+### Tests
+
+Every push runs two checks on GitHub Actions, with Node and Chrome only, no test libraries:
+
+```bash
+node --test tools/stats.test.js tools/demo.test.js
+```
+
+- **The statistics** (`tools/stats.test.js`), on series built to have a known answer: a clear season is found and peaks in the right month; pure noise is called seasonal at about the 5% rate the test promises; a product that doubles every year gets exactly the same p-value as a flat one; short or gappy histories get no verdict; planted campaign months come back as the spikes; short histories lean on the shop pattern more than long ones.
+- **The demo store** (`tools/demo.test.js`): every month's channels, buyer types and SKUs add up to its sales, the bundle survives the real products.json import, and each product still gets the verdict in the table above.
+
+```bash
+python3 -m http.server 8000 &
+node tools/smoke.js http://localhost:8000/
+```
+
+- **The page** (`tools/smoke.js`), in headless Chrome: every tab and every product page, in both languages, both display modes, all three periods and every channel filter (about 300 views), then every product page again at phone width, the demo reset, and the two sample .xlsx files through the real file input. Any page error, error banner, empty view or sideways scroll on a phone fails the run.
 
 ## Fine print
 

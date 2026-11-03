@@ -1,0 +1,37 @@
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Two steps, so a failure names itself in the run summary. Both run the same way locally:
+#   node --test tools/stats.test.js tools/demo.test.js
+#   python3 -m http.server 8000 & node tools/smoke.js http://localhost:8000/
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 22+: global WebSocket for the smoke test's DevTools connection
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+        with:
+          chrome-version: stable
+
+      - name: The statistics and the demo store
+        run: node --test tools/stats.test.js tools/demo.test.js
+
+      - name: The page, every view, desktop and phone
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          python3 -m http.server 8000 --bind 127.0.0.1 > /dev/null 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/index.html > /dev/null && break; sleep 0.5; done
+          node tools/smoke.js http://127.0.0.1:8000/
