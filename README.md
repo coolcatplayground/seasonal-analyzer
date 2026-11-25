@@ -61,11 +61,23 @@ Every month has a note field, so once someone learns the real reason, it gets wr
 The first version divided each month by its year's average and measured how much of the variation the month explained. On short histories that method found a "season" in almost anything, so it was replaced:
 
 1. **Model.** For each product, `log(sales) = year effect + month effect + noise`. The year effects absorb growth and partial years; the log makes "+50%" mean the same for a small product and a large one.
-2. **Is it real?** An F test for the month effect, with the p-value from a **permutation test**: shuffle the month labels inside each year 199 times and see how often chance does as well. Seasonal if p < 0.05.
+2. **Is it real?** An F test for the month effect, with the p-value from a **permutation test**: shuffle the month labels inside each year 199 times and see how often chance does as well. Seasonal if p < 0.05 **and** the best and worst month are at least 15 points apart (see the size rule below).
 3. **How strong?** ω² (omega squared), a version of η² corrected for the bias that makes short series look seasonal.
 4. **Enough data?** No verdict below 24 months with sales, or if any month has been seen fewer than twice.
 5. **Short histories borrow strength.** Each month's estimate is pulled toward the shop-wide pattern, more strongly the less data the product has (empirical Bayes shrinkage). The page shows the weight and a 90% band.
 6. **Spikes.** Months far above what the model expected for that year and month, by a robust z-score. Half a spike or more per year counts as "spiky".
+
+### Three guards (added November 2026)
+
+A review of the model with synthetic series that have a known answer (they're in [`tests.html`](tests.html)) found three ways it could still call something a season when it wasn't. Each now has a guard, applied to products with enough data for a verdict:
+
+- **Growth inside a year.** Year effects take out growth *between* years, but within one year a steady rise looks like "December strong, January weak". Each year's monthly drift is estimated from the years around it (capped at ×3 a year) and taken out before the fit. A product growing 3% a month with no season used to be called seasonal every time; now it's called seasonal about as often as pure noise.
+- **One-off campaigns.** Months far above the fit (at most two a year) are left out of the fit and the test, so one huge month can't set that month's index. They stay in the spike list, tagged 季節指数から除外 (left out of the index). Before: one 10× June made June look 46% above normal and listed every ordinary June as a low month. After: June 100%.
+- **Size.** A long, quiet product can have a pattern that is real but tiny. Something bought every day sells about 8% less in 3月度, the fiscal month that runs 21 Feb to 20 Mar and so has only 28 or 29 days. A pattern now needs at least 15 points between its best and worst month to count as seasonal.
+
+The データの信頼性 (reliability) box on each product page shows the pattern size, how many campaign months were left out, and how much growth was removed.
+
+Still open: a product that sells only in a few months (a winter-only heater, say) still gets データ不足, because some months have no sales at all.
 
 The spike diagnosis is a correlation, so it's labelled as a hypothesis and paired with a note field for the real answer.
 
@@ -73,7 +85,7 @@ The method comes from the seasonality analysis my colleague and I were already r
 
 ## Specimens in the demo greenhouse
 
-The real data is confidential, so the demo is a fictional cat-supply store: ten series, January 2019 to October 2026, generated in the browser. They were picked to give every verdict and every feature something to show:
+The real data is confidential, so the demo is a fictional cat-supply store: eleven series, January 2019 to October 2026, generated in the browser. They were picked to give every verdict and every feature something to show:
 
 | Series | What it is | Verdict |
 |---|---|---|
@@ -85,13 +97,15 @@ The real data is confidential, so the demo is a fictional cat-supply store: ten 
 | 毛玉ケアフード 毎日ブラッシュ | Hairball care food | Seasonal + spikes |
 | またたびスティック30本 | Matatabi sticks | Spike-driven |
 | ミラクル猫砂 10L | Litter | Stable |
+| 毎日カリカリ 2kg | Everyday dry food | Stable (pattern too small) |
 | にゃんファウンテン 自動給水器 | Water fountain, launched Feb 2025 | Not enough data |
 | しつけ教室チケット | Training class tickets (a service, so a second 会計区分) | Seasonal |
 
 A few of them are there on purpose:
 
-- **またたびスティック** sells steadily, with fourteen DM and magazine promotions scattered across eleven different months. The buyer breakdown names every one of its top ten spikes "members reached", and four of them carry notes saying which mailing it was.
-- **ミラクル猫砂** is the honest trap. It wobbles enough month to month to look like a pattern on a chart; the permutation test says it's luck (p = 0.74).
+- **またたびスティック** sells steadily, with fourteen DM and magazine promotions scattered across eleven different months. The buyer breakdown names every one of its top ten spikes "members reached", and four of them carry notes saying which mailing it was. Its biggest promotions are tagged 季節指数から除外, so they don't make their months look seasonal.
+- **ミラクル猫砂** is the honest trap. It wobbles enough month to month to look like a pattern on a chart; the permutation test says it's luck (p = 0.44).
+- **毎日カリカリ** is the opposite trap. Cats eat every day, so every 3月度 (28 or 29 days) comes in about 8% low. The pattern is real (p = 0.005) but only 11 points from best month to worst, so the size rule calls it stable. The first version of the method called it seasonal.
 - **ちゅーるタワー** has a bump every February: 猫の日 (2/22) gift boxes. In the spike list those Februaries come out as "bigger baskets", not more people, and its marketplace share has grown fastest of any series (22% → 45%).
 - **にゃんファウンテン** is too young for a verdict, so it borrows the shop's season, and the 12-month view of 勢い tags it 新 (new).
 - **こたつニャンハウス** is shrinking and this autumn is running well under its usual path, so it sits at the bottom of 勢い.
@@ -119,17 +133,18 @@ Open the live demo, or serve the folder locally:
 python3 -m http.server 8000
 ```
 
-There's no build step and no server-side code. Uploaded data is stored in the browser's IndexedDB and never leaves the device; nothing syncs between browsers. SheetJS (for reading .xlsx) and the fonts load from public CDNs. While the demo is loaded, **デモをリセット** (Reset demo) puts back any demo product or note a visitor changed.
+There's no build step and no server-side code. Uploaded data is stored in the browser's IndexedDB and never leaves the device; nothing syncs between browsers. SheetJS 0.20.3 (for reading .xlsx) loads from cdn.sheetjs.com (the 0.18.5 build on cdnjs has known vulnerabilities), and the fonts from Google Fonts. A file dropped anywhere on the page is imported, not just on the drop zone. While the demo is loaded, **デモをリセット** (Reset demo) puts back any demo product or note a visitor changed.
 
 ### Tests
 
 Every push runs two checks on GitHub Actions, with Node and Chrome only, no test libraries:
 
 ```bash
-node --test tools/stats.test.js tools/demo.test.js
+node --test tools/stats.test.js tools/demo.test.js tools/scenarios.test.js
 ```
 
-- **The statistics** (`tools/stats.test.js`), on series built to have a known answer: a clear season is found and peaks in the right month; pure noise is called seasonal at about the 5% rate the test promises; a product that doubles every year gets exactly the same p-value as a flat one; short or gappy histories get no verdict; planted campaign months come back as the spikes; short histories lean on the shop pattern more than long ones.
+- **The statistics** (`tools/stats.test.js`), on series built to have a known answer: a clear season is found and peaks in the right month; pure noise is called seasonal at about the 5% rate the test promises; a product that doubles every year, compounding monthly, gets exactly the same p-value as a flat one; one huge campaign month is left out of the index but stays the top spike; a real but tiny pattern is not called seasonal; short or gappy histories get no verdict; planted campaign months come back as the spikes; short histories lean on the shop pattern more than long ones.
+- **The scenarios** (`tools/scenarios.test.js`, the same checks as [`tests.html`](tests.html) in a browser): each scenario is repeated 200 times with fresh noise. Noise, growth, decline, a level jump, a launch ramp, days-in-month and a 10× campaign must stay below a 10% false-seasonal rate; real seasons, even under growth and campaigns, must still be found.
 - **The demo store** (`tools/demo.test.js`): every month's channels, buyer types and SKUs add up to its sales, the bundle survives the real products.json import, and each product still gets the verdict in the table above.
 
 ```bash

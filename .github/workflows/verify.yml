@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 # Two steps, so a failure names itself in the run summary. Both run the same way locally:
-#   node --test tools/stats.test.js tools/demo.test.js
+#   node --test tools/stats.test.js tools/demo.test.js tools/scenarios.test.js
 #   python3 -m http.server 8000 & node tools/smoke.js http://localhost:8000/
 jobs:
   verify:
@@ -25,8 +25,8 @@ jobs:
         with:
           chrome-version: stable
 
-      - name: The statistics and the demo store
-        run: node --test tools/stats.test.js tools/demo.test.js
+      - name: The statistics, the scenarios and the demo store
+        run: node --test tools/stats.test.js tools/demo.test.js tools/scenarios.test.js
 
       - name: The page, every view, desktop and phone
         env:

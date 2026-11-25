@@ -81,7 +81,7 @@ async function main() {
   await goto(BASE + 'index.html');
   await ev(`localStorage.setItem('seasonal-analyzer-scope', JSON.stringify({ accounts: ['商品売上高', 'サービス売上高', '__manual'], includeEnded: true })); true`);
   await goto(BASE + 'index.html?demo');
-  if (!(await waitFor("document.querySelectorAll('#view-products.is-active tbody tr').length === 10"))) fail.push('?demo: the ten demo series did not load');
+  if (!(await waitFor("document.querySelectorAll('#view-products.is-active tbody tr').length === 11"))) fail.push('?demo: the eleven demo series did not load');
   if (await ev("document.getElementById('demo-notice').hidden")) fail.push('?demo: the demo notice is hidden');
 
   const tabs = ['products', 'calendar', 'momentum', 'channels', 'notes'];
@@ -151,7 +151,7 @@ async function main() {
   await click('.tab-btn[data-view="products"]');
   await ev("SalesDB.remove('ミラクル猫砂 10L').then(() => true)");
   await click('#reset-demo');
-  if (!(await waitFor("SalesDB.getAll().then((a) => a.length === 10)"))) fail.push('reset: the deleted demo product did not come back');
+  if (!(await waitFor("SalesDB.getAll().then((a) => a.length === 11)"))) fail.push('reset: the deleted demo product did not come back');
   checks++;
 
   // the .xlsx path: the two sample files through the real file input (SheetJS from the CDN)

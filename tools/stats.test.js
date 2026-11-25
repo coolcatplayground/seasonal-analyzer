@@ -1,5 +1,5 @@
 // The verdict logic in js/stats.js, on series built to have a known answer.
-//   node --test tools/
+//   node --test tools/*.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./load');
@@ -54,15 +54,42 @@ test('pure noise is rarely called seasonal (false-positive rate near α = 5%)', 
   assert.ok(falsePositives <= 5, `${falsePositives} of 40 noise series were called seasonal`);
 });
 
-test('growth from year to year changes nothing: only the 月度 shape inside a year counts', () => {
-  // the same noise, flat and doubling every year: the year effects absorb the level exactly
+test('steady growth is not mistaken for a season', () => {
+  // Doubling a year, compounding every month: inside one year that looks like "December strong,
+  // January weak". The within-year drift is taken out before the fit, so the verdict and the
+  // pattern match the same noise without growth.
   for (const seed of [2, 5, 8]) {
     const still = analyze(series({ seed, logFn: flat }), 'g' + seed);
-    const growing = analyze(series({ seed, logFn: (y) => y * Math.log(2) }), 'g' + seed);
-    assert.equal(growing.test.p, still.test.p);
-    assert.ok(Math.abs(growing.test.omega2 - still.test.omega2) < 1e-9);
-    assert.equal(growing.classification.key, still.classification.key);
+    const growing = analyze(series({ seed, logFn: (y, m) => (y + (m - 1) / 12) * Math.log(2) }), 'g' + seed);
+    assert.equal(growing.classification.key, still.classification.key, `seed ${seed}`);
+    assert.equal(growing.test.p, still.test.p, `seed ${seed}`);
+    assert.ok(Math.abs(growing.amplitude - still.amplitude) < 1e-6, `size ${growing.amplitude} vs ${still.amplitude}`);
+    assert.ok(growing.growth > 0.8 && growing.growth < 1.1, `growth removed ${growing.growth}`);
   }
+});
+
+test('a season survives steady growth, and still peaks in the right month', () => {
+  const a = analyze(series({ seed: 6, logFn: (y, m) => winterPeak(y, m) + (y + (m - 1) / 12) * Math.log(1.5) }));
+  assert.equal(a.classification.key, 'seasonal');
+  assert.equal(a.seasonal.reduce((x, s) => (s.index > x.index ? s : x)).month, 12);
+});
+
+test('one big campaign month is left out of the index and still listed as the top spike', () => {
+  const a = analyze(series({ seed: 7, logFn: flat, sd: 0.04, spikes: { '2022-06': 10 } }));
+  assert.equal(a.campaignCount, 1);
+  assert.equal(a.spikes[0].ymKey, '2022-06');
+  assert.equal(a.spikes[0].campaign, true);
+  const june = a.seasonal[5].raw;
+  assert.ok(june > 0.9 && june < 1.12, `June index ${june}`);
+  assert.notEqual(a.classification.key.startsWith('seasonal'), true);
+});
+
+test('a real but tiny pattern is not called seasonal (size rule)', () => {
+  // ±4% every year with very little noise: significant, but best − worst < 15 points
+  const a = analyze(series({ months: 120, seed: 11, sd: 0.015, logFn: (y, m) => 0.04 * Math.sin((m / 12) * 2 * Math.PI) }));
+  assert.ok(a.test.p < SalesStats.CONFIG.alpha, `p = ${a.test.p}`);
+  assert.equal(a.bigEnough, false);
+  assert.equal(a.classification.key, 'stable');
 });
 
 test('under 24 months with sales: no verdict', () => {
