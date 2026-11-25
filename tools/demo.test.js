@@ -1,6 +1,6 @@
 // The demo store: its numbers add up, it goes through the real products.json import, and
 // every product still lands on the verdict the README's "Specimens" table promises.
-//   node --test tools/
+//   node --test tools/*.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./load');
@@ -21,10 +21,11 @@ const README_VERDICTS = {
   'ミラクル猫砂': 'stable',
   'にゃんファウンテン': 'insufficient',
   'しつけ教室チケット': 'seasonal',
+  '毎日カリカリ': 'stable',
 };
 
-test('ten series, January 2019 to October 2026', () => {
-  assert.equal(doc.series.length, 10);
+test('eleven series, January 2019 to October 2026', () => {
+  assert.equal(doc.series.length, 11);
   assert.equal(doc.dataThrough, '2026-10');
   assert.equal(find('猫のおせち').rows[0].ymKey, '2019-01');
 });
@@ -76,11 +77,19 @@ test('each product gets the verdict the README promises', () => {
   }
 });
 
-test('the README specifics: litter p ≈ 0.74, matatabi has 14 spikes, the fountain is new, Halloween ended', () => {
+test('the README specifics: litter p ≈ 0.44, matatabi has 14 spikes, kibble is too small to call seasonal, the fountain is new, Halloween ended', () => {
   const ctx = SalesStats.buildContext(doc.series.filter((s) => s.accounting === '商品売上高'));
   const run = (prefix) => { const s = find(prefix); return SalesStats.analyze(s.rows, ctx, s.name); };
-  assert.equal(run('ミラクル猫砂').test.p.toFixed(2), '0.74');
-  assert.equal(run('またたびスティック').spikeCount, 14);
+  assert.equal(run('ミラクル猫砂').test.p.toFixed(2), '0.44');
+  const matatabi = run('またたびスティック');
+  assert.equal(matatabi.spikeCount, 14);
+  assert.equal(matatabi.campaignCount, 14);
+  const kibble = run('毎日カリカリ');
+  assert.ok(kibble.test.p < 0.05, `kibble p ${kibble.test.p}`);
+  assert.equal(kibble.bigEnough, false);
+  assert.equal(Math.round(kibble.amplitude * 100), 11);
+  // its lowest 月度 is 3月度, the 28-day one
+  assert.equal(kibble.seasonal.reduce((x, s) => (s.raw < x.raw ? s : x)).month, 3);
   assert.equal(find('にゃんファウンテン').rows[0].ymKey, '2025-02');
   assert.equal(find('ハロウィン仮装').active, false);
   assert.equal(find('しつけ教室チケット').accounting, 'サービス売上高');

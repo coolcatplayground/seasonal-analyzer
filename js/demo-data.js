@@ -1,8 +1,8 @@
 // demo-data.js — a fictional cat-supply store for the "デモデータ" button.
 // Built here in the browser, in the same shape as products.json (see db.js for the fields),
 // and loaded through the same import path, so the demo exercises exactly what real data does:
-// SKUs, buyer types, order channels, an ended series, a short-history product and a second
-// 会計区分. Seeded, so every visitor sees the same numbers. Nothing in it is real.
+// SKUs, buyer types, order channels, an ended series, a short-history product, a second
+// 会計区分, one-off campaigns and a pattern too small to call seasonal. Seeded, so every visitor sees the same numbers. Nothing in it is real.
 
 const SalesDemo = (() => {
   const FIRST = '2019-01';
@@ -188,6 +188,18 @@ const SalesDemo = (() => {
         { code: 'CE102', name: 'しつけ教室チケット M', share: [0.4, 0.45] },
       ],
     },
+    {
+      // Bought every day, so each 月度's sales follow its number of days: 3月度 (21 Feb – 20 Mar)
+      // always runs about 8% low. Real and repeatable, but too small to call seasonal.
+      name: '毎日カリカリ 2kg', seed: 21, start: '2019-01', level: 880000, growth: 0.04, noise: 0.025,
+      season: flat, daily: true, price: 2480, mix: [0.06, 0.08, 0.80, 0.06], repeat: [0.72, 0.46],
+      ch: { from: { web: 0.36, mall: 0.36, phone: 0.14, mail: 0.06, store: 0.06, seminar: 0, other: 0.02 },
+        to: { web: 0.38, mall: 0.46, phone: 0.08, mail: 0.03, store: 0.04, seminar: 0, other: 0.01 } },
+      skus: [
+        { code: 'CK111', name: '毎日カリカリ 2kg', share: [0.75, 0.62] },
+        { code: 'CK112', name: '毎日カリカリ 2kg ×2袋', share: [0.25, 0.38] },
+      ],
+    },
   ];
 
   // Notes, as someone on the team would have written them after finding out.
@@ -234,6 +246,8 @@ const SalesDemo = (() => {
       const t = monthsBetween(FIRST, ymKey);
       let mult = Math.exp(def.season[month - 1] + gauss(r) * def.noise) * Math.pow(1 + def.growth, t / 12);
       if (def.rampUp && i < def.rampUp) mult *= (i + 1) / (def.rampUp + 1);
+      // 月度 m runs from the 21st of the month before to the 20th, so it has as many days as that month
+      if (def.daily) mult *= new Date(year, month - 1, 0).getDate() / 30.4;
       if (def.dip && ymKey >= def.dip.from && ymKey <= def.dip.to) mult *= def.dip.factor;
       if (def.lift && ymKey >= def.lift.from) mult *= def.lift.factor;
       const spike = spikes.get(ymKey);
